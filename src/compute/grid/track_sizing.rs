@@ -1429,11 +1429,19 @@ fn stretch_auto_tracks(
             }
         };
         if free_space > 0.0 {
-            let extra_space_per_auto_track = free_space / num_auto_tracks as f32;
-            axis_tracks
-                .iter_mut()
-                .filter(|track| track.max_track_sizing_function.is_auto())
-                .for_each(|track| track.base_size += extra_space_per_auto_track);
+            // Distribute the free space in whole 1/60 px units and give the
+            // remainder one unit each to the first auto tracks, as Gecko does.
+            let free_units = crate::util::sys::round(free_space * 60.0) as i64;
+            let per_track = free_units / num_auto_tracks as i64;
+            let mut remainder = free_units % num_auto_tracks as i64;
+            axis_tracks.iter_mut().filter(|track| track.max_track_sizing_function.is_auto()).for_each(|track| {
+                let mut stretch = per_track;
+                if remainder > 0 {
+                    remainder -= 1;
+                    stretch += 1;
+                }
+                track.base_size += stretch as f32 / 60.0;
+            });
         }
     }
 }
