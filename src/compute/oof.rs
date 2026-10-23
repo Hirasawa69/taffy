@@ -15,7 +15,7 @@ use crate::tree::{
     AxisStaticPosition, Layout, LayoutContainingBlock, LayoutInput, LayoutOutput, LayoutPartialTreeExt, NodeId,
     OofCandidate, OofCandidates, OofPositioningArea, RequestedAxis, RunMode, SizingMode,
 };
-use crate::util::sys::{f32_max, Vec};
+use crate::util::sys::{ceil, f32_max, floor, round, Vec};
 use crate::util::{MaybeMath, MaybeResolve, ResolveOrZero};
 use crate::{AxisStaticEdge, BoxSizing, Direction};
 
@@ -254,7 +254,13 @@ impl OofAxis {
                         Line { start: 0.0, end: free_space }
                     }
                 } else {
-                    Line { start: free_space / 2.0, end: free_space / 2.0 }
+                    // Gecko halves the free space in whole 1/60 px units, the integer division
+                    // truncating toward zero, and gives the end margin the rest
+                    // (`ReflowInput::ComputeAbsPos{Inline,Block}AutoMargin`)
+                    let half_units = round(free_space * 60.0) / 2.0;
+                    let half_units = if half_units < 0.0 { ceil(half_units) } else { floor(half_units) };
+                    let start = half_units / 60.0;
+                    Line { start, end: free_space - start }
                 }
             }
         }

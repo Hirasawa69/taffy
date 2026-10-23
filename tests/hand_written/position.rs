@@ -36,6 +36,33 @@ mod position_variants {
         }
     }
 
+    /// Gecko halves an absolutely positioned box's free space in whole 1/60 px units,
+    /// truncating toward zero: 63 units give the start margin 31 in both axes, -63 give -31.
+    #[test]
+    fn absolute_auto_margins_split_in_whole_app_units() {
+        let mut taffy: TaffyTree<()> = TaffyTree::new();
+        taffy.disable_rounding();
+        let child = taffy
+            .new_leaf(Style {
+                position: Position::Absolute,
+                size: Size { width: length(98.95), height: length(101.05) },
+                inset: Rect { left: length(0.0), right: length(0.0), top: length(0.0), bottom: length(0.0) },
+                margin: Rect { left: auto(), right: auto(), top: auto(), bottom: auto() },
+                ..Default::default()
+            })
+            .unwrap();
+        let root = taffy
+            .new_with_children(
+                Style { size: Size { width: length(100.0), height: length(100.0) }, ..Default::default() },
+                &[child],
+            )
+            .unwrap();
+        taffy.compute_layout(root, Size::MAX_CONTENT).unwrap();
+        let layout = taffy.layout(child).unwrap();
+        assert!((layout.location.x - 31.0 / 60.0).abs() < 1e-4, "x {}", layout.location.x);
+        assert!((layout.location.y + 31.0 / 60.0).abs() < 1e-4, "y {}", layout.location.y);
+    }
+
     #[test]
     fn sticky_is_positioned_but_in_flow() {
         assert!(Position::Sticky.is_positioned());
